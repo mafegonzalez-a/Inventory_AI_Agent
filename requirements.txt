@@ -1,1 +1,4 @@
 pandas
+optimum[onnxruntime]
+transformers
+torch
