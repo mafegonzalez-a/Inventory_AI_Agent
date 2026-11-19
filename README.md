@@ -1,7 +1,5 @@
 # Inventory AI Agent
 
-*Proyecto final de Transformers, Parte 2. Desarrollado por Karla, Samir y Mafer.*
-
 ## Descripción
 
 Agente de inteligencia artificial que responde preguntas sobre el inventario de una tienda de electrónica ficticia (precios, existencias, categorías y calificaciones). El modelo de lenguaje no conoce los datos de antemano: aprende, mediante ejemplos en el prompt, a usar una herramienta de Python que consulta el archivo `data/products.csv`.
@@ -122,8 +120,6 @@ Para volver a generar el modelo, borra la carpeta `onnx_model/` y ejecuta de nue
 
 ## Equipo
 
-Integrantes
-
-Samir XXXXXX
-Maria Fernanda XXXXXX
-Karla Paola Medina Escorcia
+- Samir XXXXXX
+- Maria Fernanda XXXXXX
+- Karla Paola Medina Escorcia
