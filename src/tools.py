@@ -131,12 +131,13 @@ def get_information(query: dict) -> list[dict]:
 
     # Sort results
     sort_by = query.get("sort_by")
+    ascending = query.get("ascending", True)
 
     if sort_by:
         if sort_by not in inventory_data.columns:
             raise KeyError(f"Column not found: {sort_by}")
 
-        inventory_data = inventory_data.sort_values(by=sort_by)
+        inventory_data = inventory_data.sort_values(by = sort_by, ascending = ascending)
 
     # Limit results
     limit = query.get("limit")
