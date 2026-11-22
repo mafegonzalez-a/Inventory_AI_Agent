@@ -28,7 +28,7 @@ def main() -> None:
     Returns:
         None
     """
-    export_model("distilgpt2", "onnx_model")
+    export_model("HuggingFaceTB/SmolLM2-135M-Instruct", "onnx_model_smollm")
 
 
 if __name__ == "__main__":
