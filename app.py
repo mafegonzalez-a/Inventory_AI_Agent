@@ -69,10 +69,10 @@ def run_agent(question: str) -> tuple[str, str]:
 
 
 EJEMPLOS = [
-    "¿Cuál es el precio del 'Ultrabook Air M3'?",
+    "¿Cuál es el precio del 'Laptop Pro X15'?",
     "¿Cuántos 'Smartphone G-Max' hay en stock?",
     "¿Qué productos pertenecen a la categoría 'Accesorios'?",
-    "¿Cuál es el producto más caro?",
+    "¿Cuál es el producto con la calificación más alta?",
 ]
 
 
