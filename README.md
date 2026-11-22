@@ -120,6 +120,6 @@ Para volver a generar el modelo, borra la carpeta `onnx_model/` y ejecuta de nue
 
 ## Equipo
 
-- Samir XXXXXX
-- Maria Fernanda XXXXXX
+- Samir Mateo Sierra Blanco
+- Maria Fernanda Gonzalez Acevedo
 - Karla Paola Medina Escorcia
