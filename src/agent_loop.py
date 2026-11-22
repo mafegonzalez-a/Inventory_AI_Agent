@@ -5,12 +5,15 @@ from typing import Callable, Optional
 from optimum.onnxruntime import ORTModelForCausalLM
 from transformers import PreTrainedTokenizerBase
 
-def get_example_bank() -> list[tuple[str, dict, set[str]]]:
-    """Devuelve el banco de ejemplos que se usan para guiar al modelo.
 
-    Cada ejemplo contiene una pregunta, la consulta correcta para esa pregunta
-    y un conjunto de palabras clave que permiten reconocer qué tipo de
-    pregunta representa. Los productos usados existen en products.csv.
+def get_examples() -> list[tuple[str, dict, set[str]]]:
+    """Devuelve los ejemplos de consultas que guían al modelo.
+
+    Cada ejemplo contiene una pregunta, la consulta correcta para esa
+    pregunta y un conjunto de palabras clave que permiten reconocer qué tipo
+    de pregunta representa. Hay uno por cada tipo de pregunta frecuente
+    (categoría, calificación, stock, promedio y precio), con productos que
+    existen en products.csv.
 
     Returns:
         list[tuple[str, dict, set[str]]]: Lista de ejemplos, cada uno con la
@@ -18,55 +21,52 @@ def get_example_bank() -> list[tuple[str, dict, set[str]]]:
     """
     return [
         (
-            "What is the average price of all products?",
-            {"select": ["price"], "operation": "mean"},
-            {"average", "promedio", "mean", "all", "todos"},
-        ),
-        (
-            "What is the price of the 'Laptop Pro X15'?",
-            {"filters": [{"column": "name", "operator": "==", "value": "Laptop Pro X15"}],
-             "select": ["name", "price"]},
-            {"price", "precio", "cuesta", "cuánto", "cuanto", "cost", "much"},
-        ),
-        (
-            "¿Cuántos 'Tablet S11' hay en stock?",
-            {"filters": [{"column": "name", "operator": "==", "value": "Tablet S11"}],
-             "select": ["name", "stock_quantity"]},
-            {"stock", "hay", "cuántos", "cuantos", "many", "quantity", "unidades"},
-        ),
-        (
             "Which products belong to the category 'Accesorios'?",
-            {"filters": [{"column": "category", "operator": "==", "value": "Accesorios"}],
+            {"filters": [{"column": "category", "operator": "==",
+                          "value": "Accesorios"}],
              "select": ["name"]},
             {"category", "categoría", "categoria", "belong", "pertenecen"},
         ),
         (
-            "¿Cuál es la calificación del 'Monitor Curvo 4K'?",
-            {"filters": [{"column": "name", "operator": "==", "value": "Monitor Curvo 4K"}],
+            "What is the rating of the 'Monitor Curvo 4K'?",
+            {"filters": [{"column": "name", "operator": "==",
+                          "value": "Monitor Curvo 4K"}],
              "select": ["name", "rating"]},
             {"rating", "calificación", "calificacion", "score", "puntuación"},
         ),
         (
-            "¿Qué productos cuestan más de 1000?",
-            {"filters": [{"column": "price", "operator": ">", "value": 1000}],
+            "How many 'Tablet S11' are in stock?",
+            {"filters": [{"column": "name", "operator": "==",
+                          "value": "Tablet S11"}],
+             "select": ["name", "stock_quantity"]},
+            {"stock", "many", "cuántos", "cuantos", "unidades", "inventario"},
+        ),
+        (
+            "What is the average price of all products?",
+            {"select": ["price"], "operation": "mean"},
+            {"average", "promedio", "mean", "media", "all", "todos", "todas"},
+        ),
+        (
+            "What is the price of the 'Laptop Pro X15'?",
+            {"filters": [{"column": "name", "operator": "==",
+                          "value": "Laptop Pro X15"}],
              "select": ["name", "price"]},
-            {"más", "mas", "cuestan", "over", "above", "than", "caros", "expensive"},
+            {"price", "precio", "cost", "cuesta", "cuestan", "cuánto",
+             "cuanto", "much"},
         ),
     ]
 
 
-def select_examples(question: str, max_examples: int = 4) -> list[tuple[str, dict]]:
-    """Elige los ejemplos más parecidos a la pregunta del usuario.
+def order_examples(question: str) -> list[tuple[str, dict]]:
+    """Ordena los ejemplos de menor a mayor parecido con la pregunta.
 
-    Compara las palabras de la pregunta con las palabras clave de cada ejemplo
-    y conserva los que más coinciden. Los ejemplos se ordenan de menos a más
-    parecido, de modo que el más relevante quede al final del prompt, que es
-    el que el modelo tiende a imitar.
+    Compara las palabras de la pregunta con las palabras clave de cada
+    ejemplo. El más parecido queda al final del prompt, porque el modelo
+    tiende a imitar los ejemplos más cercanos a la pregunta. Se conservan
+    todos los ejemplos; solo cambia su orden.
 
     Args:
         question (str): Pregunta formulada por el usuario.
-        max_examples (int): Cantidad máxima de ejemplos a devolver. Por
-            defecto es 4.
 
     Returns:
         list[tuple[str, dict]]: Lista de ejemplos, cada uno con su pregunta y
@@ -77,21 +77,22 @@ def select_examples(question: str, max_examples: int = 4) -> list[tuple[str, dic
     # Se puntúa cada ejemplo según cuántas palabras clave comparte con la pregunta
     scored_examples = [
         (len(question_words & keywords), example_question, query)
-        for example_question, query, keywords in get_example_bank()
+        for example_question, query, keywords in get_examples()
     ]
 
-    # El orden es ascendente: los últimos elementos son los más parecidos
+    # El orden es estable: si hay empate, se conserva el orden original
     scored_examples.sort(key=lambda item: item[0])
-    best_examples = scored_examples[-max_examples:]
-    return [(example_question, query) for _, example_question, query in best_examples]
+    return [(example_question, query) for _, example_question, query in scored_examples]
 
 
 def build_reasoning_prompt(question: str) -> str:
     """Prepara las instrucciones que recibe el modelo para consultar el inventario.
 
-    Incluye las columnas disponibles y los ejemplos más parecidos a la
-    pregunta del usuario, para que el modelo imite el formato de consulta
-    esperado.
+    Indica las columnas disponibles, un glosario que relaciona los términos
+    en español con el nombre de cada columna, y los ejemplos de consultas
+    válidas, ordenados de modo que el más parecido a la pregunta quede al
+    final. El modelo imita el formato de esos ejemplos para escribir su
+    propia consulta.
 
     Args:
         question (str): Pregunta realizada por el usuario.
@@ -99,25 +100,31 @@ def build_reasoning_prompt(question: str) -> str:
     Returns:
         str: Instrucciones completas, con los ejemplos y la pregunta.
     """
+    # El glosario permite que las preguntas en español se asocien con las
+    # columnas, cuyos nombres están en inglés
     header = (
         "You are an assistant for an electronics store.\n"
         "Columns: product_id, name, category, price, stock_quantity, rating.\n"
+        "Spanish terms: precio = price, calificación = rating, "
+        "categoría = category, stock = stock_quantity, nombre = name, "
+        "promedio = average.\n"
         "Answer with only the JSON query, on one line.\n\n"
     )
 
     examples_text = ""
-    for example_question, query in select_examples(question):
+    for example_question, query in order_examples(question):
         query_text = json.dumps(query, ensure_ascii=False)
         examples_text += f"Question: {example_question}\nQuery: {query_text}\n\n"
 
-    return (header + examples_text + f"Question: {question}\nQuery:").strip()
+    return header + examples_text + f"Question: {question}\nQuery:"
 
 
 def build_answer_prompt(question: str, tool_result: str) -> str:
     """Prepara las instrucciones para que el modelo redacte la respuesta final.
 
-    Incluye dos ejemplos de cómo convertir los datos de la herramienta en una
-    frase, para que el modelo conteste en lugar de repetir la pregunta.
+    Incluye tres ejemplos de cómo convertir los datos de la herramienta en una
+    frase (una lista de productos, un dato de stock y un precio), para que el
+    modelo conteste en lugar de repetir la pregunta.
 
     Args:
         question (str): Pregunta realizada por el usuario.
@@ -128,16 +135,19 @@ def build_answer_prompt(question: str, tool_result: str) -> str:
     """
     return (
         "Answer the question using only the tool result.\n\n"
+        "Question: Which products belong to the category 'Accesorios'?\n"
+        'Tool result: [{"name": "Hub USB-C 8-en-1"}, {"name": "Webcam Pro 4K"}]\n'
+        "Answer: The products are Hub USB-C 8-en-1 and Webcam Pro 4K.\n\n"
+        "Question: How many 'Tablet S11' are in stock?\n"
+        'Tool result: [{"name": "Tablet S11", "stock_quantity": 30}]\n'
+        "Answer: There are 30 units of Tablet S11 in stock.\n\n"
         "Question: What is the price of the 'Laptop Pro X15'?\n"
-        "Tool result: [{\"name\": \"Laptop Pro X15\", \"price\": 1250.5}]\n"
+        'Tool result: [{"name": "Laptop Pro X15", "price": 1250.5}]\n'
         "Answer: The Laptop Pro X15 costs 1250.5.\n\n"
-        "Question: ¿Cuántos 'Tablet S11' hay en stock?\n"
-        "Tool result: [{\"name\": \"Tablet S11\", \"stock_quantity\": 30}]\n"
-        "Answer: Hay 30 unidades de Tablet S11 en stock.\n\n"
         f"Question: {question}\n"
         f"Tool result: {tool_result}\n"
         "Answer:"
-    ).strip()
+    )
 
 
 def generate_text(
@@ -211,6 +221,53 @@ def parse_decision(decision_text: str) -> Optional[dict]:
     return query
 
 
+def answer_uses_result(answer: str, rows: list[dict], question: str) -> bool:
+    """Verifica que la respuesta mencione algún dato nuevo del resultado.
+
+    Sirve para descartar respuestas desconectadas de los datos, por ejemplo
+    cuando el modelo solo repite el nombre del producto o inventa una
+    descripción. Los textos que ya aparecen en la pregunta (como el nombre
+    del producto) no cuentan, porque no demuestran que la respuesta use el
+    resultado de la herramienta.
+
+    Args:
+        answer (str): Respuesta redactada por el modelo.
+        rows (list[dict]): Resultados devueltos por la herramienta.
+        question (str): Pregunta realizada por el usuario.
+
+    Returns:
+        bool: True si la respuesta contiene al menos un valor nuevo del
+            resultado, o si el resultado no tiene valores nuevos que buscar.
+    """
+    question_text = question.lower()
+
+    # Se descartan los textos que ya venían en la pregunta
+    new_values = []
+    for row in rows:
+        for value in row.values():
+            if isinstance(value, str) and value.lower() in question_text:
+                continue
+            new_values.append(value)
+
+    # Si no hay valores nuevos que comprobar, no se puede rechazar la respuesta
+    if not new_values:
+        return True
+
+    for value in new_values:
+        candidates = {str(value)}
+
+        # Los números pueden escribirse con distinto formato (35 o 35.0)
+        if isinstance(value, float):
+            candidates.add(f"{value:.2f}")
+            candidates.add(str(round(value, 1)))
+            if value.is_integer():
+                candidates.add(str(int(value)))
+
+        if any(candidate in answer for candidate in candidates):
+            return True
+    return False
+
+
 def run_agent_loop(
     question: str,
     model: ORTModelForCausalLM,
@@ -265,13 +322,18 @@ def run_agent_loop(
 
     # Paso 5: preparar las instrucciones y generar la respuesta final
     final_prompt = build_answer_prompt(question, tool_result)
-    final_answer = generate_text(model, tokenizer, final_prompt, max_new_tokens=40)
+    final_answer = generate_text(model, tokenizer, final_prompt, max_new_tokens=60)
 
     # Conservar únicamente la primera línea de la respuesta
     final_answer = final_answer.strip().split("\n")[0]
 
-    # Si el modelo solo repite la pregunta, se devuelven los datos tal cual
-    if final_answer and question not in final_answer:
+    # Se acepta la respuesta del modelo solo si no repite la pregunta y usa
+    # datos nuevos del resultado; de lo contrario, se devuelven los datos tal cual
+    if (
+        final_answer
+        and question not in final_answer
+        and answer_uses_result(final_answer, rows, question)
+    ):
         return final_answer
 
     return tool_result
