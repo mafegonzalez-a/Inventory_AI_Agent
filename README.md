@@ -63,6 +63,8 @@ Durante las pruebas se encontró una dificultad con algunas preguntas en españo
 | Archivo o carpeta | Descripción |
 |---|---|
 | `main.py` | Punto de entrada del programa. Carga el modelo y permite realizar preguntas desde la consola hasta que el usuario escriba `salir`. |
+| `app.py` | Interfaz web hecha con Gradio. Usa el mismo modelo ONNX y el mismo `run_agent_loop` que `main.py`. |
+| `docs/img/` | Capturas de la interfaz que se muestran en este README. |
 | `src/export_model.py` | Descarga el modelo y lo exporta al formato ONNX. Se ejecuta una sola vez. |
 | `src/load_model.py` | Carga el modelo ONNX y su tokenizer desde una carpeta local. |
 | `src/agent_loop.py` | Contiene los prompts, la interpretación de las consultas, la llamada a la herramienta y la generación de la respuesta final. |
@@ -148,6 +150,28 @@ Durante la ejecución, se muestran en la consola los diferentes pasos del agente
 - `[Decisión del modelo]`: consulta generada en formato JSON.
 - `[Resultado de la herramienta]`: datos obtenidos del archivo CSV.
 - `Respuesta`: resultado final que recibe el usuario.
+
+### 5. Interfaz web con Gradio (opcional)
+
+Además de la consola, el agente se puede usar desde una interfaz web hecha con [Gradio](https://www.gradio.app/). Funciona con el mismo modelo ONNX local, por lo que requiere haber exportado el modelo en el paso 3.
+
+```powershell
+python app.py
+```
+
+Abre en el navegador la dirección que aparece en la consola (normalmente `http://127.0.0.1:7860`). Escribe una pregunta y presiona **Preguntar**, o usa los botones de ejemplo. La primera pregunta tarda unos segundos porque en ese momento se carga el modelo. El desplegable **Razonamiento del agente** muestra los pasos internos (prompt, decisión del modelo y resultado de la herramienta). Para detenerla, presiona `Ctrl + C`.
+
+Capturas de la interfaz:
+
+**Consulta de existencias:** `¿Cuántos 'Smartphone G-Max' hay en stock?`
+
+![Interfaz de Gradio respondiendo cuántas unidades hay del Smartphone G-Max](docs/img/interfaz_stock.png)
+
+**Consulta de precio:** `¿Cuál es el precio del 'Laptop Pro X15'?`
+
+![Interfaz de Gradio respondiendo el precio del Laptop Pro X15](docs/img/interfaz_precio.png)
+
+Las respuestas salen en inglés porque el modelo SmolLM2-135M está entrenado principalmente en ese idioma (ver *Limitaciones conocidas*).
 
 ## Preguntas de prueba
 
